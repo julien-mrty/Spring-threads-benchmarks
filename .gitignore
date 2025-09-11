@@ -1,8 +1,20 @@
-# Compiled class file
+# --- Java ---
 *.class
-
-# Log file
 *.log
+*.hprof
+hs_err_pid*
+replay_pid*
+*.swp
+*.swo
+
+# --- Maven ---
+target/
+
+# Keep Maven Wrapper in VCS (do NOT ignore these)
+#! .mvn/wrapper/
+#! mvnw
+#! mvnw.cmd
+
 
 # BlueJ files
 *.ctxt
@@ -22,3 +34,25 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# --- IntelliJ IDEA ---
+.idea/
+*.iml
+out/
+
+# --- VS Code ---
+.vscode/
+
+# --- Logs & temp ---
+logs/
+*.tmp
+*.bak
+
+# --- Spring Boot reports (optional) ---
+/site/
+surefire-reports/
+failsafe-reports/
+jacoco.exec
+jacoco/
+coverage/
+*.lcov
