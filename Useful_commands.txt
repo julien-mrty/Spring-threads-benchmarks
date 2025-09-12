@@ -1,4 +1,4 @@
-============================== Docker Compose run ==============================
+============================== Run Docker Compose ==============================
 docker compose up -d
 
 ============================== Local Run ==============================
@@ -23,6 +23,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=mvc-vt
 
 ============================== Tests ==============================
 # run the full build lifecycle up to the verify phase:
+mvn -q test
 mvn -B -ntp verify
 
 # Read seeded rows

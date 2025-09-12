@@ -11,11 +11,11 @@ import java.sql.PreparedStatement;
 @Repository
 public class OrderRepo {
     private final JdbcTemplate jdbc;
+    private final MeterRegistry registry;
 
-    public OrderRepo(JdbcTemplate jdbc) {
+    public OrderRepo(JdbcTemplate jdbc, MeterRegistry registry) {
         this.jdbc = jdbc;
-        // Optional: per-JdbcTemplate query timeout (seconds)
-        this.jdbc.setQueryTimeout(1);
+        this.registry = registry;
     }
 
     public OrderDto findById(long id) {

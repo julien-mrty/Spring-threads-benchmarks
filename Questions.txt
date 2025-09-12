@@ -12,3 +12,5 @@ Can you remind me what is a DTO
 What is hikari ?
 
 More details about jakarta validation
+
+What is prometheus ?
