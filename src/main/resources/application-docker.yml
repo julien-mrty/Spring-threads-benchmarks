@@ -1,8 +1,0 @@
-spring:
-  datasource:
-    url: jdbc:postgresql://postgres:5432/appdb
-    username: app
-    password: app_pw
-  jpa:
-    hibernate:
-      ddl-auto: validate
