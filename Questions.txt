@@ -14,3 +14,5 @@ What is hikari ?
 More details about jakarta validation
 
 What is prometheus ?
+
+What is low cardinality
