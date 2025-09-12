@@ -22,3 +22,14 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+
+  metrics:
+    tags:
+      app: spring-threads-benchmarks
+      profile: ${spring.profiles.active:local}
+      run: ${RUN_ID:dev}
+    distribution:
+      percentiles-histogram:
+        db.find_by_id: true
+        db.create_order: true
+        db.slow_query: true
