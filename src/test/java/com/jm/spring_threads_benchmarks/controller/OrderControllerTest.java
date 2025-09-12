@@ -1,10 +1,9 @@
 package com.jm.spring_threads_benchmarks.controller;
 
-import com.jm.spring_threads_benchmarks.dto.OrderDto;
 import com.jm.spring_threads_benchmarks.repository.OrderRepo;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.MediaType;
@@ -18,7 +17,7 @@ class OrderControllerTest {
 
     @Autowired MockMvc mvc;
 
-    @MockBean OrderRepo repo;
+    @MockitoBean OrderRepo repo;
 
     @Test
     void create_returnsNewOrder() throws Exception {
