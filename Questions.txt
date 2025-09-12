@@ -15,4 +15,6 @@ More details about jakarta validation
 
 What is prometheus ?
 
-What is low cardinality
+What is low cardinality?
+
+What is the relation between graphana and k6?
