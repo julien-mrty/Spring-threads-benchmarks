@@ -1,0 +1,39 @@
+===== Docker Compose run =====
+docker compose up -d
+
+===== Local Run =====
+# Start just Postgres
+sudo docker compose up -d postgres
+
+# (optional) make sure the app container is stopped so port 8080 is free
+sudo docker compose stop app
+
+1)
+mvn spring-boot:run   -Dspring-boot.run.profiles=mvc-vt   -Dspring-boot.run.arguments="\
+    --spring.datasource.url=jdbc:postgresql://localhost:5432/appdb \
+    --spring.datasource.username=app \
+    --spring.datasource.password=app_pw \
+    --spring.datasource.hikari.maximum-pool-size=16 \
+    --spring.datasource.hikari.connection-timeout=300"
+
+2)
+set -a; . ./.env; set +a
+mvn spring-boot:run -Dspring-boot.run.profiles=mvc-vt
+
+
+
+
+
+# Read seeded rows
+curl http://localhost:8080/orders/1
+curl http://localhost:8080/orders/2
+
+# Create a new order
+curl -X POST http://localhost:8080/orders \
+  -H 'Content-Type: application/json' \
+  -d '{"customer":"charlie","totalCents":1999}'
+
+# Simulate slow query
+curl 'http://localhost:8080/orders/report/slow?ms=800'
+
+
