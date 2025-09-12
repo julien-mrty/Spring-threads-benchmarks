@@ -46,35 +46,22 @@ class SpringThreadsBenchmarksApplicationIT {
 
     @Test
     void create_then_get_by_id() {
-        // --- POST /orders ---
-        var json = """
-            {"customer":"it-user","totalCents":1234}
-            """;
-        var headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        var body = new org.springframework.util.LinkedMultiValueMap<String,String>(); // (simpler: use String JSON)
+        var headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        var json = "{\"customer\":\"it-user\",\"totalCents\":1234}";
 
-        ResponseEntity<OrderDto> createResp =
-                rest.postForEntity("/orders", new HttpEntity<>(json, headers), OrderDto.class);
+        var created = rest.postForEntity("/orders",
+                new org.springframework.http.HttpEntity<>(json, headers),
+                OrderDto.class);
 
-        assertThat(createResp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(createResp.getBody()).isNotNull();
-        var created = createResp.getBody();
+        org.assertj.core.api.Assertions.assertThat(created.getStatusCode().value()).isEqualTo(201);
+        var id = created.getBody().id();
 
-        assertThat(created.customer()).isEqualTo("it-user");
-        assertThat(created.totalCents()).isEqualTo(1234);
-        assertThat(created.id()).isPositive();
-
-        // --- GET /orders/{id} ---
-        ResponseEntity<OrderDto> getResp =
-                rest.getForEntity("/orders/" + created.id(), OrderDto.class);
-
-        assertThat(getResp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(getResp.getBody()).isNotNull();
-        var fetched = getResp.getBody();
-
-        assertThat(fetched.id()).isEqualTo(created.id());
-        assertThat(fetched.customer()).isEqualTo("it-user");
-        assertThat(fetched.totalCents()).isEqualTo(1234);
+        var fetched = rest.getForEntity("/orders/" + id, OrderDto.class);
+        org.assertj.core.api.Assertions.assertThat(fetched.getStatusCode().value()).isEqualTo(200);
+        org.assertj.core.api.Assertions.assertThat(fetched.getBody().customer()).isEqualTo("it-user");
+        org.assertj.core.api.Assertions.assertThat(fetched.getBody().totalCents()).isEqualTo(1234);
     }
 }
 

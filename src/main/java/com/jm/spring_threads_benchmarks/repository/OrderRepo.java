@@ -29,7 +29,7 @@ public class OrderRepo {
         );
     }
 
-    public long create_order(String customer, int totalCents) {
+    public long create(String customer, int totalCents) {
         var sql = "insert into orders(customer, total_cents) values (?, ?) returning id";
         // Portable way without RETURNING (works too):
         KeyHolder kh = new GeneratedKeyHolder();

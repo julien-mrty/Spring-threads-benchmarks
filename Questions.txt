@@ -10,3 +10,5 @@ Here why use record ? public record OrderDto(long id, String customer, int total
 Can you remind me what is a DTO
 
 What is hikari ?
+
+More details about jakarta validation
