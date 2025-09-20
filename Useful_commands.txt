@@ -30,13 +30,22 @@ mvn -B -ntp verify
 ============================== Load testing ==============================
 # Check how to use docker later
 
+# 1) Seed 1000 rows (parallel batches of 100)
+BASE_URL=http://localhost:8080 SEED_N=1000 SEED_CHUNK=100 \
+k6 run scripts/k6/seeder.js
+
+# Check console output for the suggested ID_MIN / ID_MAX
+# 2) Run main test (constante_rate.js) using that range
 # with envs
 BASE_URL=http://localhost:8080 \
-RATE=20000 \
-DURATION=1m \
+RPS=350 \
+DURATION=0.5m \
 BATCH=20 \
-AVG_ITER_MS=210 \
-k6 run scripts/k6/mix.js
+AVG_ITER_MS=600 \
+RATIO_GET=4 \
+RATIO_POST=1 \
+RATIO_SLOW=1 \
+k6 run scripts/k6/constante_rate.js
 
 # Same machine, but CPU-pin each process
 # Plain processes (Linux)
@@ -61,7 +70,7 @@ GOMAXPROCS=4 taskset -c 4-7 \
     DURATION=1m \
     BATCH=20 \
     AVG_ITER_MS=210 \
-    k6 run scripts/k6/mix.js
+    k6 run scripts/k6/constante_rate.js
 
 # GOMAXPROCS=4 matches the 4 pinned cores and reduces scheduler overhead.
 
