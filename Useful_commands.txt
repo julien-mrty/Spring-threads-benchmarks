@@ -26,6 +26,64 @@ mvn spring-boot:run -Dspring-boot.run.profiles=mvc-vt
 mvn -q test
 mvn -B -ntp verify
 
+
+============================== Load testing ==============================
+# Check how to use docker later
+
+# 1) Seed 1000 rows (parallel batches of 100)
+BASE_URL=http://localhost:8080 SEED_N=1000 SEED_CHUNK=100 \
+k6 run scripts/k6/seeder.js
+
+# Check console output for the suggested ID_MIN / ID_MAX
+# 2) Run main test (constante_rate.js) using that range
+# with envs
+BASE_URL=http://localhost:8080 \
+RPS=350 \
+DURATION=0.5m \
+BATCH=20 \
+AVG_ITER_MS=600 \
+RATIO_GET=4 \
+RATIO_POST=1 \
+RATIO_SLOW=1 \
+k6 run scripts/k6/constante_rate.js
+
+# Same machine, but CPU-pin each process
+# Plain processes (Linux)
+
+# Pin Spring Boot to cores 0–3
+taskset -c 0-3 \
+    -Dspring-boot.run.jvmArguments="-XX:ActiveProcessorCount=4" \
+    mvn spring-boot:run   -Dspring-boot.run.profiles=mvc-vt   -Dspring-boot.run.arguments="\
+        --spring.datasource.url=jdbc:postgresql://localhost:5432/appdb \
+        --spring.datasource.username=app \
+        --spring.datasource.password=app_pw \
+        --spring.datasource.hikari.maximum-pool-size=16 \
+        --spring.datasource.hikari.connection-timeout=300"
+
+# taskset -c 0-3 binds the JVM to cores 0,1,2,3
+#-XX:ActiveProcessorCount=4 keeps JVM thread/GC sizing consistent with the 4 cores
+
+# Pin k6 to cores 4–7
+GOMAXPROCS=4 taskset -c 4-7 \
+    BASE_URL=http://localhost:8080 \
+    RATE=20000 \
+    DURATION=1m \
+    BATCH=20 \
+    AVG_ITER_MS=210 \
+    k6 run scripts/k6/constante_rate.js
+
+# GOMAXPROCS=4 matches the 4 pinned cores and reduces scheduler overhead.
+
+# Verify bindings
+# Srping
+pidof java |pidof java | xargs -I{} taskset -pc {}
+xargs -I{} taskset -pc {}
+
+# k6
+pidof k6   | xargs -I{} taskset -pc {}
+
+
+
 # Read seeded rows
 curl http://localhost:8080/orders/1
 curl http://localhost:8080/orders/2
@@ -34,8 +92,3 @@ curl http://localhost:8080/orders/2
 curl -X POST http://localhost:8080/orders \
   -H 'Content-Type: application/json' \
   -d '{"customer":"charlie","totalCents":1999}'
-
-# Simulate slow query
-curl 'http://localhost:8080/orders/report/slow?ms=800'
-
-
