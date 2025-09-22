@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: "Business_metrics_dashboard"
+    orgId: 1
+    folder: "Observability"          # will create/use this folder in Grafana
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true             # lets you tweak panels in UI; JSON is still the source of truth on restart
+    options:
+      path: /etc/grafana/dashboards  # where we’ll mount your JSON files
+      # recursive: true              # enable if you use subfolders

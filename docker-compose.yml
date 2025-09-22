@@ -57,7 +57,7 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=7d
       - --web.enable-lifecycle
-      - --web.enable-remote-write-receiver   # <-- required for k6 remote write
+      - --web.enable-remote-write-receiver   # required for k6 remote write
     networks: [ obs ]
 
   grafana:
@@ -69,6 +69,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
     depends_on: [ prometheus ]
     networks: [ obs ]
 
@@ -79,7 +81,7 @@ services:
     networks: [ obs ]
     working_dir: /work
     volumes:
-      - ./scripts/k6:/work:ro     # <-- only mount scripts/k6, read-only
+      - ./scripts/k6:/work:ro     # only mount scripts/k6, read-only
     environment:
       K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
       BASE_URL: http://backend:8080
@@ -90,7 +92,8 @@ services:
       RATIO_GET: "4"
       RATIO_POST: "1"
       RATIO_SLOW: "1"
-    entrypoint: ["/bin/sh","-lc"]
+      K6_COMPATIBILITY_MODE: extended # Modern JS so ?. and ?? work
+    entrypoint: ["/bin/sh","-lc"] # use shell, not k6
     command: /work/run_loop.sh
 
 networks:
