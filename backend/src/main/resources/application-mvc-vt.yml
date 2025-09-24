@@ -35,4 +35,9 @@ management:
         "[hikaricp.connections.acquire]": true
         "[jvm.gc.pause]": true
       slo:
-        "[http.server.requests]": 0.1s,0.2s,0.3s,0.6s,1s
+        "[http.server.requests]":
+          - 100ms
+          - 200ms
+          - 300ms
+          - 600ms
+          - 1s

@@ -23,7 +23,7 @@ services:
   backend:
     container_name: backend
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     depends_on:
       postgres:
