@@ -1,14 +1,14 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: pg
+    container_name: postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -18,8 +18,10 @@ services:
       - .env
     ports:
       - "5432:5432"
+    networks: [ obs ]
 
-  app:
+  backend:
+    container_name: backend
     build:
       context: .
       dockerfile: Dockerfile
@@ -41,6 +43,62 @@ services:
       - .env
     ports:
       - "8080:8080"   # expose API to your host browser/Postman
+    networks: [ obs ]
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver   # required for k6 remote write
+    networks: [ obs ]
+
+  grafana:
+    image: grafana/grafana:10.4.5
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on: [ prometheus ]
+    networks: [ obs ]
+
+  k6:
+    image: grafana/k6:0.52.0
+    container_name: k6
+    depends_on: [ backend, prometheus ]
+    networks: [ obs ]
+    working_dir: /work
+    volumes:
+      - ./scripts/k6:/work:ro     # only mount scripts/k6, read-only
+    environment:
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      BASE_URL: http://backend:8080
+      RPS: "350"
+      DURATION: 1m
+      BATCH: "20"
+      AVG_ITER_MS: "600"
+      RATIO_GET: "4"
+      RATIO_POST: "1"
+      RATIO_SLOW: "1"
+      K6_COMPATIBILITY_MODE: extended # Modern JS so ?. and ?? work
+    entrypoint: ["/bin/sh","-lc"] # use shell, not k6
+    command: /work/run_loop.sh
+
+networks:
+  obs:
 
 volumes:
-  pgdata:
+  postgres_data:
+  prometheus_data:

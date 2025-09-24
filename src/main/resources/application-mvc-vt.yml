@@ -18,10 +18,7 @@ spring:
     locations: classpath:db/migration
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
+  endpoints.web.exposure.include: health,info,metrics,prometheus
   metrics.web.server.request.autotime.enabled: true
 
   metrics:
@@ -34,3 +31,8 @@ management:
         db.find_by_id: true
         db.create_order: true
         db.slow_query: true
+        "[http.server.requests]": true
+        "[hikaricp.connections.acquire]": true
+        "[jvm.gc.pause]": true
+      slo:
+        "[http.server.requests]": 0.1s,0.2s,0.3s,0.6s,1s

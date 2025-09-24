@@ -37,6 +37,7 @@ k6 run scripts/k6/seeder.js
 # Check console output for the suggested ID_MIN / ID_MAX
 # 2) Run main test (constante_rate.js) using that range
 # with envs
+K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
 BASE_URL=http://localhost:8080 \
 RPS=350 \
 DURATION=0.5m \
@@ -45,7 +46,7 @@ AVG_ITER_MS=600 \
 RATIO_GET=4 \
 RATIO_POST=1 \
 RATIO_SLOW=1 \
-k6 run scripts/k6/constante_rate.js
+k6 run -o experimental-prometheus-rw scripts/k6/constant_rate.js
 
 # Same machine, but CPU-pin each process
 # Plain processes (Linux)

@@ -2,6 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { Counter, Rate } from 'k6/metrics';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.4/index.js';
+import { envNum } from './common.js';
 
 
 // ---- Counter --------------------------------------------------------------
@@ -11,17 +12,18 @@ export const business_resps_ok  = new Rate('business_resps_ok');            // y
 
 
 // ---- Env knobs --------------------------------------------------------------
-const BASE_URL              = __ENV.BASE_URL || 'http://localhost:8080';
-const RPS           = Number(__ENV.RPS || 2000); // desired requests/sec
-const DURATION              = __ENV.DURATION || '1m';
-const BATCH         = Number(__ENV.BATCH || 20);        // requests per iteration (parallel)
-const AVG_ITER_MS   = Number(__ENV.AVG_ITER_MS || 130); // from your last runs (~131–132ms)
-const ID_MIN        = Number(__ENV.ID_MIN ?? 1);
-const ID_MAX        = Number(__ENV.ID_MAX ?? 1000);
+const BASE_URL     = __ENV.BASE_URL && __ENV.BASE_URL !== '' ? __ENV.BASE_URL : 'http://backend:8080';
+const RPS          = envNum('RPS', 2000);
+const DURATION     = (__ENV.DURATION && __ENV.DURATION !== '') ? __ENV.DURATION : '1m';
+const BATCH        = envNum('BATCH', 20);
+const AVG_ITER_MS  = envNum('AVG_ITER_MS', 130);
+const ID_MIN       = envNum('ID_MIN', 1);
+const ID_MAX       = envNum('ID_MAX', 1000);
 
-if (!Number.isFinite(ID_MIN) || !Number.isFinite(ID_MAX) || ID_MIN > ID_MAX) {
+if (ID_MIN > ID_MAX) {
   throw new Error(`Bad ID range: ID_MIN=${ID_MIN} ID_MAX=${ID_MAX}`);
 }
+
 
 // Optional: tune request mix (per "cycle" below)
 const RATIO_GET  = Number(__ENV.RATIO_GET  || 4);
@@ -142,8 +144,15 @@ export default function () {
         const ok = (st === 200 || st === 201);
         business_resps_ok.add(ok);
 
-        status_count.add(1,  { status: String(st), type: opts?.tags?.type });
-        status_family.add(1, { family: fam, type: opts?.tags?.type });
+        const typeTag = (opts && opts.tags) ? opts.tags.type : undefined;
+
+        const tags1 = { status: String(st) };
+        if (typeTag !== undefined) tags1.type = String(typeTag);
+        status_count.add(1, tags1);
+
+        const tags2 = { family: fam };
+        if (typeTag !== undefined) tags2.type = String(typeTag);
+        status_family.add(1, tags2);
     }
 }
 
