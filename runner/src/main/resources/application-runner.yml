@@ -1,0 +1,10 @@
+runner:
+  k6-container: k6
+  allow-base-url: http://backend:8080
+  prom-remote-write-url: http://prometheus:9090/api/v1/write
+  scripts-dir: /work           # where your .js are mounted
+  results-dir: /data/runs      # where JSON summaries are written
+  max-concurrency: 1           # queue depth = unlimited; workers = 1
+
+management:
+  endpoints.web.exposure.include: health,info,prometheus

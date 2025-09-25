@@ -1,7 +1,7 @@
 ============================== Run Docker Compose ==============================
 docker compose up -d
 
-============================== Local Run ==============================
+============================== Backend Local Run ==============================
 # Start just Postgres
 sudo docker compose up -d postgres
 
@@ -19,6 +19,10 @@ mvn spring-boot:run   -Dspring-boot.run.profiles=mvc-vt   -Dspring-boot.run.argu
 2)
 set -a; . ./.env; set +a
 mvn spring-boot:run -Dspring-boot.run.profiles=mvc-vt
+
+
+============================== Runner Local Run ==============================
+mvn spring-boot:run   -Dspring-boot.run.profiles=runner
 
 
 ============================== Tests ==============================
