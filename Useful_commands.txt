@@ -22,7 +22,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=mvc-vt
 
 
 ============================== Runner Local Run ==============================
-mvn spring-boot:run   -Dspring-boot.run.profiles=runner
+mvn -q -U spring-boot:run -Dspring-boot.run.profiles=runner
 
 
 ============================== Tests ==============================

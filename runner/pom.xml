@@ -41,6 +41,13 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Spring test + JUnit -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Security (for SecurityFilterChain/HttpSecurity) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -64,13 +71,6 @@
             <artifactId>docker-java-transport-httpclient5</artifactId>
             <version>3.6.0</version>
         </dependency>
-        <!--
-        <dependency>
-            <groupId>com.github.docker-java</groupId>
-            <artifactId>docker-java-transport-zerodep</artifactId>
-            <version>3.5.3</version>
-        </dependency>
-        -->
 
         <!-- Lombok -->
         <dependency>

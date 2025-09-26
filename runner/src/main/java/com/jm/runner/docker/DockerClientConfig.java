@@ -3,22 +3,26 @@ package com.jm.runner.docker;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.httpclient5.ZerodepDockerHttpClient;
+import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Bean;
 
 import java.time.Duration;
 
-public final class DockerClientConfig {
-    private DockerClientConfig() {}
+@Configuration(proxyBeanMethods = false)      // no inter-bean calls → no proxy needed
+public class DockerClientConfig {
 
-    public static DockerClient dockerClient() {
+    @Bean
+    public DockerClient dockerClient() {
         var config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
 
-        var httpClient = new ZerodepDockerHttpClient.Builder()
+        var httpClient = new ApacheDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
                 .sslConfig(config.getSSLConfig())
+                .connectionTimeout(Duration.ofSeconds(10))
+                .responseTimeout(Duration.ofSeconds(60))
                 .build();
 
         return DockerClientImpl.getInstance(config, httpClient);
     }
 }
-
