@@ -8,3 +8,6 @@ runner:
 
 management:
   endpoints.web.exposure.include: health,info,prometheus
+
+server:
+  port: 8081

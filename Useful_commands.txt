@@ -16,13 +16,23 @@ mvn spring-boot:run   -Dspring-boot.run.profiles=mvc-vt   -Dspring-boot.run.argu
     --spring.datasource.hikari.maximum-pool-size=16 \
     --spring.datasource.hikari.connection-timeout=300"
 
+# Generate .jar (package phrase)
+mvn -DskipTests -U clean package -Dspring-boot.run.arguments="\
+    --spring.datasource.url=jdbc:postgresql://localhost:5432/appdb \
+    --spring.datasource.username=app \
+    --spring.datasource.password=app_pw \
+    --spring.datasource.hikari.maximum-pool-size=16 \
+    --spring.datasource.hikari.connection-timeout=300"
+
 2)
 set -a; . ./.env; set +a
 mvn spring-boot:run -Dspring-boot.run.profiles=mvc-vt
 
 
 ============================== Runner Local Run ==============================
-mvn -q -U spring-boot:run -Dspring-boot.run.profiles=runner
+mvn spring-boot:run -Dspring-boot.run.profiles=runner
+# Generate .jar (package phrase)
+mvn -DskipTests -U clean package -Dspring-boot.run.profiles=runner
 
 
 ============================== Tests ==============================
@@ -51,6 +61,12 @@ RATIO_GET=4 \
 RATIO_POST=1 \
 RATIO_SLOW=1 \
 k6 run -o experimental-prometheus-rw scripts/k6/constant_rate.js
+
+curl -s -X POST http://localhost:8081/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"script":"constant_rate.js","params":{"BASE_URL":"http://backend:8080","RPS":"350","DURATION":"0.5m","BATCH":"20","AVG_ITER_MS":"600","RATIO_GET":"4","RATIO_POST":"1","RATIO_SLOW":"1"}}' \
+| jq .
+
 
 # Same machine, but CPU-pin each process
 # Plain processes (Linux)

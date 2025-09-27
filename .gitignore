@@ -50,5 +50,5 @@ jacoco/
 coverage/
 *.lcov
 
-backend/.env
+.env
 *.odt#

@@ -68,6 +68,7 @@ public class RunnerService {
         String baseUrl = params.getOrDefault("BASE_URL", props.getAllowBaseUrl());
         if (!baseUrl.equals(props.getAllowBaseUrl()))
             throw new IllegalArgumentException("BASE_URL must be " + props.getAllowBaseUrl());
+
         params.put("BASE_URL", baseUrl);
 
         String id = UUID.randomUUID().toString().substring(0,10);

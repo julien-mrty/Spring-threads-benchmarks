@@ -1,4 +1,4 @@
-package com.jm.spring_threads_benchmarks.errors;
+package com.jm.spring_threads_benchmarks.error;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
