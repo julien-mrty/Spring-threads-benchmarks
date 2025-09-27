@@ -9,6 +9,8 @@ import com.jm.runner.model.RunRecord;
 import com.jm.runner.api.StartRunRequest;
 import java.io.File;
 import java.util.Collection;
+import org.springframework.web.server.ResponseStatusException;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/runs")
@@ -28,15 +30,25 @@ public class RunsController {
     @GetMapping("/{id}")
     public ResponseEntity<RunRecord> get(@PathVariable String id) {
         var r = service.get(id);
-        return (r == null) ? ResponseEntity.notFound().build() : ResponseEntity.ok(r);
+            if (r == null)
+                throw new ResponseStatusException(NOT_FOUND, "Run not found: " + id);
+        return ResponseEntity.ok(r);
     }
 
     @GetMapping("/{id}/summary")
     public ResponseEntity<FileSystemResource> summary(@PathVariable String id) {
         var r = service.get(id);
-        if (r == null || r.summaryPath == null) return ResponseEntity.notFound().build();
+
+        if (r == null)
+            throw new ResponseStatusException(NOT_FOUND, "Run not found: " + id);
+
+        if (r.summaryPath == null)
+            throw new ResponseStatusException(NOT_FOUND, "Summary not available yet");
+
         File f = new File(r.summaryPath);
-        if (!f.exists()) return ResponseEntity.notFound().build();
+        if (!f.exists())
+            throw new ResponseStatusException(NOT_FOUND, "Summary file missing");
+
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(new FileSystemResource(f));

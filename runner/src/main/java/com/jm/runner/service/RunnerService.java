@@ -56,8 +56,11 @@ public class RunnerService {
         Objects.requireNonNull(req.script, "script is required");
         if (!SAFE_SCRIPT.matcher(req.script).matches() || req.script.contains(".."))
             throw new IllegalArgumentException("invalid script name");
+
         Path script = Path.of(props.getScriptsDir(), req.script).normalize();
-        if (!Files.exists(script)) throw new IllegalArgumentException("script not found: " + req.script);
+
+        if (!Files.exists(script))
+            throw new IllegalArgumentException("script not found: " + req.script);
 
         Map<String,String> params = Optional.ofNullable(req.params).orElseGet(HashMap::new);
 
