@@ -14,42 +14,31 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    env_file:
-      - .env
-    ports:
-      - "5432:5432"
+    ports: [ "5432:5432" ]
     networks: [ obs ]
 
   backend:
     container_name: backend
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE}
+      SPRING_PROFILES_ACTIVE: ${BACKEND_PROFILE}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_DB_POOL_SIZE: ${DB_POOL_SIZE}
       SPRING_DB_CONNECTION_TIMEOUT: ${DB_CONNECTION_TIMEOUT}
-      # R2DBC alternative:
-      # SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/appdb
-      # SPRING_R2DBC_USERNAME: ${POSTGRES_USER}
-      # SPRING_R2DBC_PASSWORD: ${POSTGRES_PASSWORD}
-    env_file:
-      - .env
-    ports:
-      - "8080:8080"   # expose API to your host browser/Postman
+    ports: [ "8080:8080" ]
     networks: [ obs ]
 
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: prometheus
-    ports:
-      - "9090:9090"
+    ports: [ "9090:9090" ]
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -63,8 +52,7 @@ services:
   grafana:
     image: grafana/grafana:10.4.5
     container_name: grafana
-    ports:
-      - "3000:3000"
+    ports: [ "3000:3000" ]
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
@@ -80,21 +68,26 @@ services:
     depends_on: [ backend, prometheus ]
     networks: [ obs ]
     working_dir: /work
+    entrypoint: ["tail","-f","/dev/null"]
     volumes:
-      - ./scripts/k6:/work:ro     # only mount scripts/k6, read-only
+      - ./scripts/k6:/work:ro        # load scripts
+      - k6_runs:/data/runs           # shared results dir
+
+  runner:
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    container_name: runner
     environment:
-      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
-      BASE_URL: http://backend:8080
-      RPS: "350"
-      DURATION: 1m
-      BATCH: "20"
-      AVG_ITER_MS: "600"
-      RATIO_GET: "4"
-      RATIO_POST: "1"
-      RATIO_SLOW: "1"
-      K6_COMPATIBILITY_MODE: extended # Modern JS so ?. and ?? work
-    entrypoint: ["/bin/sh","-lc"] # use shell, not k6
-    command: /work/run_loop.sh
+      SPRING_PROFILES_ACTIVE: ${RUNNER_PROFILE}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # talk to Docker
+      - k6_runs:/data/runs                          # read summaries to serve
+      - ./scripts/k6:/work:ro                       # validate scripts exist
+    depends_on: [ k6, backend, prometheus ]
+    networks: [ obs ]
+    ports: ["8081:8081"]
+
 
 networks:
   obs:
@@ -102,3 +95,4 @@ networks:
 volumes:
   postgres_data:
   prometheus_data:
+  k6_runs:
