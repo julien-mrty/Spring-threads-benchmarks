@@ -19,24 +19,6 @@ class RunnerApplicationIT {
 
     @Autowired TestRestTemplate rest;
 
-    @TestConfiguration
-    static class Stubs {
-        @Bean DockerClient dockerClient() {
-            return mock(DockerClient.class); // stubbed Docker
-        }
-        @Bean SimpleMeterRegistry meterRegistry() {
-            return new SimpleMeterRegistry(); // minimal metrics
-        }
-        @Bean RunnerProperties runnerProperties() {
-            RunnerProperties props = new RunnerProperties();
-            props.setAllowBaseUrl("http://backend:8080");
-            props.setScriptsDir("/tmp");
-            props.setResultsDir("/tmp");
-            props.setMaxConcurrency(1);
-            return props;
-        }
-    }
-
     @Test
     void startRun_endpoint_returns_202() {
         var json = """
