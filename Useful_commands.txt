@@ -37,7 +37,7 @@ mvn -DskipTests -U clean package -Dspring-boot.run.profiles=runner
 
 ============================== Tests ==============================
 # run the full build lifecycle up to the verify phase:
-mvn -q test
+mvn test
 mvn -B -ntp verify
 
 
