@@ -14,7 +14,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    ports: [ "5432:5432" ]
+    # ports: [ "5432:5432" ]
     networks: [ obs ]
 
   backend:
@@ -32,13 +32,12 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_DB_POOL_SIZE: ${DB_POOL_SIZE}
       SPRING_DB_CONNECTION_TIMEOUT: ${DB_CONNECTION_TIMEOUT}
-    ports: [ "8080:8080" ]
+    # ports: [ "8080:8080" ]
     networks: [ obs ]
 
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: prometheus
-    ports: [ "9090:9090" ]
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -47,19 +46,23 @@ services:
       - --storage.tsdb.retention.time=7d
       - --web.enable-lifecycle
       - --web.enable-remote-write-receiver   # required for k6 remote write
+    ports: [ "9090:9090" ] # Do not expose later
     networks: [ obs ]
 
   grafana:
     image: grafana/grafana:10.4.5
     container_name: grafana
-    ports: [ "3000:3000" ]
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     volumes:
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/dashboards:/etc/grafana/dashboards:ro
     depends_on: [ prometheus ]
+    ports: [ "3000:3000" ] # Do not expose later
     networks: [ obs ]
 
   k6:
@@ -85,9 +88,27 @@ services:
       - k6_runs:/data/runs                          # read summaries to serve
       - ./scripts/k6:/work:ro                       # validate scripts exist
     depends_on: [ k6, backend, prometheus ]
+    ports: [ "8081:8081" ] # Do not expose later
     networks: [ obs ]
-    ports: ["8081:8081"]
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    environment:
+      # Keep same-origin: UI proxies to runner & grafana
+      - VITE_RUNNER_BASE_URL=            # leave empty → use relative /runs
+      - VITE_GRAFANA_BASE_URL=/grafana   # iframe goes through nginx proxy
+      - VITE_GRAFANA_DASH_UID=yourDashUid
+      - VITE_GRAFANA_DASH_SLUG=runner-dashboard
+      - VITE_GRAFANA_ORG_ID=1
+    ports:
+      - "8080:80"  # Supposed to be the only exposed port
+    depends_on:
+      - runner
+      - grafana
+    networks: [ obs ]
 
 networks:
   obs:
