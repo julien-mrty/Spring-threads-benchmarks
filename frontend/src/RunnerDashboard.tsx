@@ -20,6 +20,14 @@ type RunSummary = {
     kpis?: KPIs
 }
 
+// --- Theme helpers ---
+type Theme = 'light' | 'dark'
+function getPreferredTheme(): Theme {
+    const stored = (localStorage.getItem('theme') || '').toLowerCase()
+    if (stored === 'light' || stored === 'dark') return stored
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 // --- Utils ---
 function toEpochMs(x: number | string): number {
     if (typeof x === 'number') return x
@@ -27,7 +35,7 @@ function toEpochMs(x: number | string): number {
     return Number.isNaN(t) ? 0 : t
 }
 
-function buildGrafanaUrl(run: RunSummary): string {
+function buildGrafanaUrl(run: RunSummary, theme: Theme): string {
     const startMs = toEpochMs(run.startedAt)
     const from = startMs - LEAD_MS
     const to = startMs + run.durationSec * 1000 + LAG_MS
@@ -37,6 +45,7 @@ function buildGrafanaUrl(run: RunSummary): string {
         to: String(to),
         refresh: '5s',
         'var-runId': run.id,
+        theme, // <- tell Grafana which theme to use
     })
     const slug = GRAFANA_DASH_SLUG ? `/${GRAFANA_DASH_SLUG}` : ''
     return `${GRAFANA_BASE_URL}/d/${GRAFANA_DASH_UID}${slug}?${params.toString()}`
@@ -50,6 +59,13 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 
 // --- Component ---
 export default function RunnerDashboard() {
+    // Theme
+    const [theme, setTheme] = useState<Theme>(() => getPreferredTheme())
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme)
+        localStorage.setItem('theme', theme)
+    }, [theme])
+
     // Core controls
     const [script, setScript] = useState<'constant_rate'>('constant_rate')
     const [rate, setRate] = useState(200)
@@ -104,7 +120,6 @@ export default function RunnerDashboard() {
                 rate,
                 durationSec,
                 threadModel,
-                // Everything configurable from UI goes here; runner forwards to k6
                 env: {
                     K6_PROMETHEUS_RW_SERVER_URL: promRWUrl,
                     BASE_URL: baseUrl,
@@ -119,12 +134,10 @@ export default function RunnerDashboard() {
                 },
             }
 
-
             const started = await http<{ runId: string; startedAt: number | string; durationSec: number }>(
                 '/runs',
                 { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
             )
-
 
             const newRun: RunSummary = {
                 id: started.runId,
@@ -143,47 +156,95 @@ export default function RunnerDashboard() {
     }
 
     const embeddedRun = useMemo(() => runs.find(r => r.id === embedRunId) || null, [runs, embedRunId])
-    const iframeUrl = embeddedRun ? buildGrafanaUrl(embeddedRun) : ''
+    const iframeUrl = embeddedRun ? buildGrafanaUrl(embeddedRun, theme) : ''
 
-    // Simple styles
-    const box: React.CSSProperties = { background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.08)', width: '100%'  }
-    const input: React.CSSProperties = { padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 8 }
-    const btn: React.CSSProperties = { padding: '8px 12px', borderRadius: 10, border: '1px solid #0f172a', background: '#0f172a', color: '#fff' }
+    // Tokenized styles (use CSS variables for theming)
+    const box: React.CSSProperties = {
+        background: 'var(--card)',
+        borderRadius: 12,
+        padding: 16,
+        boxShadow: 'var(--shadow)',
+        width: '100%',
+        border: '1px solid var(--border)',
+    }
+    const input: React.CSSProperties = {
+        padding: '8px 10px',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        background: 'var(--input-bg)',
+        color: 'var(--text)',
+    }
+    const btn: React.CSSProperties = {
+        padding: '8px 12px',
+        borderRadius: 10,
+        border: '1px solid var(--btn-border)',
+        background: 'var(--btn-bg)',
+        color: 'var(--btn-fg)',
+        cursor: 'pointer',
+    }
+    const btnSecondary: React.CSSProperties = {
+        ...btn,
+        background: 'var(--btn2-bg)',
+        border: '1px solid var(--btn2-border)',
+        color: 'var(--btn2-fg)',
+    }
 
     return (
-        <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#0f172a' }}>
+        <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
             <div
                 style={{
-                    width: 'min(1400px, 96vw)', // wide, but capped by viewport
-                    margin: '0 auto',           // centered
+                    width: 'min(1400px, 96vw)',
+                    margin: '0 auto',
                     padding: 'clamp(12px, 2vw, 24px)',
                 }}
             >
-                <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Runner Dashboard</h1>
+                <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <h1 style={{ fontSize: 22, fontWeight: 700 }}>Runner Dashboard</h1>
+                    <button
+                        type="button"
+                        onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+                        style={btnSecondary}
+                        aria-label="Toggle dark mode"
+                        title="Toggle dark mode"
+                    >
+                        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                    </button>
+                </header>
 
                 {/* --- Core form --- */}
-                <form onSubmit={startRun} style={{ ...box, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16, justifyItems: 'stretch', alignItems: 'stretch' }}>
+                <form
+                    onSubmit={startRun}
+                    style={{
+                        ...box,
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                        gap: 12,
+                        marginBottom: 16,
+                        justifyItems: 'stretch',
+                        alignItems: 'stretch',
+                    }}
+                >
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                        <span style={{ fontSize: 13 }}>Script</span>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>Script</span>
                         <select value={script} onChange={e => setScript(e.target.value as any)} style={input}>
                             <option value="constant_rate">constant_rate</option>
                         </select>
                     </label>
 
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                        <span style={{ fontSize: 13 }}>Rate (RPS)</span>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>Rate (RPS)</span>
                         <input type="number" min={1} step={1} required value={rate}
                                onChange={e => setRate(Number(e.target.value))} style={input} />
                     </label>
 
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                        <span style={{ fontSize: 13 }}>Duration (s)</span>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>Duration (s)</span>
                         <input type="number" min={1} step={1} required value={durationSec}
                                onChange={e => setDurationSec(Number(e.target.value))} style={input} />
                     </label>
 
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                        <span style={{ fontSize: 13 }}>Thread model</span>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>Thread model</span>
                         <select value={threadModel} onChange={e => setThreadModel(e.target.value as any)} style={input}>
                             <option value="virtual">virtual</option>
                             <option value="platform">platform</option>
@@ -191,48 +252,64 @@ export default function RunnerDashboard() {
                     </label>
 
                     <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <button type="button" style={{ ...btn, background: '#334155', borderColor: '#334155' }}
-                                onClick={() => setShowAdvanced(v => !v)}>
+                        <button
+                            type="button"
+                            style={btnSecondary}
+                            onClick={() => setShowAdvanced(v => !v)}
+                        >
                             {showAdvanced ? 'Hide advanced' : 'Show advanced'}
                         </button>
-                        <button type="submit" disabled={loading} style={btn}>{loading ? 'Starting…' : 'Run'}</button>
-                        {error && <span style={{ color: '#dc2626', fontSize: 13 }}>{error}</span>}
+                        <button type="submit" disabled={loading} style={btn}>
+                            {loading ? 'Starting…' : 'Run'}
+                        </button>
+                        {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
                     </div>
                 </form>
 
                 {/* --- Advanced params (collapsible) --- */}
                 {showAdvanced && (
-                    <section style={{ ...box, width:'100%', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, justifyItems: 'stretch', alignItems: 'stretch' }}>
+                    <section
+                        style={{
+                            ...box,
+                            width:'100%',
+                            marginBottom: 16,
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                            gap: 12,
+                            justifyItems: 'stretch',
+                            alignItems: 'stretch',
+                        }}
+                    >
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>BASE_URL</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>BASE_URL</span>
                             <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} style={input} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>ENDPOINT</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>ENDPOINT</span>
                             <input value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder="/api/test" style={input} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>K6_PROMETHEUS_RW_SERVER_URL</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>K6_PROMETHEUS_RW_SERVER_URL</span>
                             <input value={promRWUrl} onChange={e => setPromRWUrl(e.target.value)} style={input} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>BATCH</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>BATCH</span>
                             <input type="number" min={1} step={1} value={batch} onChange={e => setBatch(Number(e.target.value))} style={input} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>AVG_ITER_MS</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>AVG_ITER_MS</span>
                             <input type="number" min={1} step={1} value={avgIterMs} onChange={e => setAvgIterMs(Number(e.target.value))} style={input} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>RATIO_GET</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>RATIO_GET</span>
                             <input type="number" min={0} step={1} value={ratioGet} onChange={e => setRatioGet(Number(e.target.value))} style={input} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>RATIO_POST</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>RATIO_POST</span>
                             <input type="number" min={0} step={1} value={ratioPost} onChange={e => setRatioPost(Number(e.target.value))} style={input} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, width:'100%' }}>
-                            <span style={{ fontSize: 13 }}>RATIO_SLOW</span>
+                            <span style={{ fontSize: 13, color: 'var(--muted)' }}>RATIO_SLOW</span>
                             <input type="number" min={0} step={1} value={ratioSlow} onChange={e => setRatioSlow(Number(e.target.value))} style={input} />
                         </label>
                     </section>
@@ -241,13 +318,20 @@ export default function RunnerDashboard() {
                 {/* --- Embedded Grafana --- */}
                 {embeddedRun && (
                     <section style={{ ...box, width:'100%' }}>
-                        <div style={{ width:'100%', padding: 'clamp(12px, 2vw, 24px)',  display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{
+                            width:'100%',
+                            padding: 'clamp(12px, 2vw, 24px)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 8
+                        }}>
                             <h2 style={{ fontWeight: 600 }}>Live charts for run {embeddedRun.id}</h2>
-                            <a href={buildGrafanaUrl(embeddedRun)} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', fontSize: 13 }}>
+                            <a href={buildGrafanaUrl(embeddedRun, theme)} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', fontSize: 13 }}>
                                 Open in Grafana
                             </a>
                         </div>
-                        <div style={{ width: '100%', height: '70vh', minHeight: 420, overflow: 'hidden', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                        <div style={{ width: '100%', height: '70vh', minHeight: 420, overflow: 'hidden', borderRadius: 10, border: '1px solid var(--border)' }}>
                             <iframe src={iframeUrl} style={{ width: '100%', height: '100%', border: 0 }} allow="fullscreen" />
                         </div>
                     </section>
@@ -259,7 +343,7 @@ export default function RunnerDashboard() {
                     <div style={{ width:'100%', overflowX: 'auto' }}>
                         <table style={{ width: '100%', fontSize: 14, borderCollapse: 'collapse' }}>
                             <thead>
-                            <tr style={{ background: '#f1f5f9' }}>
+                            <tr style={{ background: 'var(--table-head)' }}>
                                 <th style={{ textAlign: 'left', padding: 8 }}>Run ID</th>
                                 <th style={{ textAlign: 'left', padding: 8 }}>Rate</th>
                                 <th style={{ textAlign: 'left', padding: 8 }}>Duration</th>
@@ -271,13 +355,14 @@ export default function RunnerDashboard() {
                             </thead>
                             <tbody>
                             {runs.length === 0 && (
-                                <tr><td colSpan={8} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No runs yet</td></tr>
+                                <tr><td colSpan={8} style={{ padding: 16, textAlign: 'center', color: 'var(--muted)' }}>No runs yet</td></tr>
                             )}
                             {runs.map(run => {
-                                const url = buildGrafanaUrl(run)
+                                const url = buildGrafanaUrl(run, theme)
                                 const started = new Date(toEpochMs(run.startedAt)).toLocaleString()
+                                const isEmbedded = embedRunId === run.id
                                 return (
-                                    <tr key={run.id} style={{ borderTop: '1px solid #e2e8f0' }}>
+                                    <tr key={run.id} style={{ borderTop: '1px solid var(--border)' }}>
                                         <td style={{ padding: 8, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }}>{run.id}</td>
                                         <td style={{ padding: 8 }}>{run.rate}</td>
                                         <td style={{ padding: 8 }}>{run.durationSec}s</td>
@@ -295,8 +380,8 @@ export default function RunnerDashboard() {
                                         <td style={{ padding: 8 }}>
                                             <div style={{ display: 'flex', gap: 8 }}>
                                                 <a href={url} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Open</a>
-                                                <button onClick={() => setEmbedRunId(embedRunId === run.id ? null : run.id)}>
-                                                    {embedRunId === run.id ? 'Hide' : 'Embed'}
+                                                <button style={btnSecondary} onClick={() => setEmbedRunId(isEmbedded ? null : run.id)}>
+                                                    {isEmbedded ? 'Hide' : 'Embed'}
                                                 </button>
                                             </div>
                                         </td>
