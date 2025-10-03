@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 
 // --- Grafana embed config (kept simple; same-origin via nginx proxy) ---
 const GRAFANA_BASE_URL = '/grafana'
-const GRAFANA_DASH_UID = 'yourDashUid'
-const GRAFANA_DASH_SLUG = 'runner-dashboard'
+const GRAFANA_DASH_UID = 'eeyuqdug3afi8c'
+const GRAFANA_DASH_SLUG = 'business-metrics-dashboard'
 const GRAFANA_ORG_ID = '1'
 
 const LEAD_MS = 60_000

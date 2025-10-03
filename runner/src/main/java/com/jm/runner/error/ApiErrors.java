@@ -13,15 +13,6 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 class ApiErrors {
 
-    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-    ProblemDetail handle(ResponseStatusException ex, HttpServletRequest req) {
-        var pd = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason());
-        pd.setTitle(ex.getStatusCode().toString());
-        pd.setInstance(java.net.URI.create(req.getRequestURI()));
-
-        return pd; // JSON body even for browsers
-    }
-
     @ExceptionHandler(ResponseStatusException.class)
     ProblemDetail notFound(ResponseStatusException ex, HttpServletRequest req) {
         var pd = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason());
