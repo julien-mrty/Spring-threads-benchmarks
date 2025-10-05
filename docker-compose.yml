@@ -14,6 +14,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    expose: [ "5432" ]
     # ports: [ "5432:5432" ]
     networks: [ obs ]
 
@@ -32,6 +33,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_DB_POOL_SIZE: ${DB_POOL_SIZE}
       SPRING_DB_CONNECTION_TIMEOUT: ${DB_CONNECTION_TIMEOUT}
+    expose: [ "8080" ]
     # ports: [ "8080:8080" ]
     networks: [ obs ]
 
@@ -46,7 +48,8 @@ services:
       - --storage.tsdb.retention.time=7d
       - --web.enable-lifecycle
       - --web.enable-remote-write-receiver   # required for k6 remote write
-    ports: [ "9090:9090" ] # Do not expose later
+    expose: [ "9090" ]
+    #ports: [ "9090:9090" ] # Do not expose later
     networks: [ obs ]
 
   grafana:
@@ -56,14 +59,16 @@ services:
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_SERVER_ROOT_URL=http://localhost:8080/grafana/
+      - GF_SERVER_ROOT_URL=http://localhost/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_DOMAIN=localhost
     volumes:
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/dashboards:/etc/grafana/dashboards:ro
     depends_on: [ prometheus ]
-    ports: [ "3000:3000" ] # Do not expose later
+    expose: [ "3000" ]
+    #ports: [ "3000:3000" ] # Do not expose later
     networks: [ obs ]
 
   k6:
@@ -89,7 +94,8 @@ services:
       - k6_runs:/data/runs                          # read summaries to serve
       - ./scripts/k6:/work:ro                       # validate scripts exist
     depends_on: [ k6, backend, prometheus ]
-    ports: [ "8081:8081" ] # Do not expose later
+    expose: [ "8081" ]
+    #ports: [ "8081:8081" ] # Do not expose later
     networks: [ obs ]
 
   frontend:
@@ -104,15 +110,30 @@ services:
       - VITE_GRAFANA_DASH_UID=yourDashUid
       - VITE_GRAFANA_DASH_SLUG=runner-dashboard
       - VITE_GRAFANA_ORG_ID=1
-    ports:
-      - "8080:80"  # Supposed to be the only exposed port
+    expose: [ "8082" ]
     depends_on:
       - runner
       - grafana
     networks: [ obs ]
 
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+      # For HTTPS later, also expose 443:443
+      # - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # If you add certs later:
+      # - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+    networks: [ obs ]
+
 networks:
   obs:
+    driver: bridge
 
 volumes:
   postgres_data:

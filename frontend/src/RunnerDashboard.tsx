@@ -35,20 +35,44 @@ function toEpochMs(x: number | string): number {
     return Number.isNaN(t) ? 0 : t
 }
 
-function buildGrafanaUrl(run: RunSummary, theme: Theme): string {
-    const startMs = toEpochMs(run.startedAt)
-    const from = startMs - LEAD_MS
-    const to = startMs + run.durationSec * 1000 + LAG_MS
-    const params = new URLSearchParams({
-        orgId: String(GRAFANA_ORG_ID),
-        from: String(from),
-        to: String(to),
-        refresh: '5s',
-        'var-runId': run.id,
-        theme, // <- tell Grafana which theme to use
-    })
-    const slug = GRAFANA_DASH_SLUG ? `/${GRAFANA_DASH_SLUG}` : ''
-    return `${GRAFANA_BASE_URL}/d/${GRAFANA_DASH_UID}${slug}?${params.toString()}`
+//function buildGrafanaUrl(run: RunSummary, theme: Theme): string {
+//    const startMs = toEpochMs(run.startedAt)
+//    const from = startMs - LEAD_MS
+//    const to = startMs + run.durationSec * 1000 + LAG_MS
+//    const params = new URLSearchParams({
+//        orgId: String(GRAFANA_ORG_ID),
+//        from: String(from),
+//        to: String(to),
+//        refresh: '5s',
+//        'var-runId': run.id,
+//        theme, // <- tell Grafana which theme to use
+//    })
+//    const slug = GRAFANA_DASH_SLUG ? `/${GRAFANA_DASH_SLUG}` : ''
+//    return `${GRAFANA_BASE_URL}/d/${GRAFANA_DASH_UID}${slug}?${params.toString()}`
+//}
+function buildGrafanaUrl(run: RunSummary, theme: 'light' | 'dark'): string {
+  const startMs = toEpochMs(run.startedAt);
+  const durationMs = Number(run.durationSec) * 1000 || 0;
+
+  const from = isFinite(startMs) ? startMs - LEAD_MS : Date.now() - 60_000;
+  const to   = isFinite(startMs) ? startMs + durationMs + LAG_MS : Date.now();
+
+  const url = new URL(
+    `${GRAFANA_BASE_URL}/d/${encodeURIComponent(GRAFANA_DASH_UID)}${
+      GRAFANA_DASH_SLUG ? `/${encodeURIComponent(GRAFANA_DASH_SLUG)}` : ''
+    }`,
+    window.location.origin
+  );
+
+  url.searchParams.set('orgId', String(GRAFANA_ORG_ID));
+  url.searchParams.set('from', String(from));
+  url.searchParams.set('to', String(to));
+  url.searchParams.set('refresh', '5s');
+  url.searchParams.set('timezone', 'browser');
+  url.searchParams.set('theme', theme);
+  url.searchParams.set('var-runId', run.id);
+
+  return url.pathname + '?' + url.searchParams.toString(); // relative URL
 }
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
