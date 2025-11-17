@@ -35,27 +35,14 @@ function toEpochMs(x: number | string): number {
     return Number.isNaN(t) ? 0 : t
 }
 
-//function buildGrafanaUrl(run: RunSummary, theme: Theme): string {
-//    const startMs = toEpochMs(run.startedAt)
-//    const from = startMs - LEAD_MS
-//    const to = startMs + run.durationSec * 1000 + LAG_MS
-//    const params = new URLSearchParams({
-//        orgId: String(GRAFANA_ORG_ID),
-//        from: String(from),
-//        to: String(to),
-//        refresh: '5s',
-//        'var-runId': run.id,
-//        theme, // <- tell Grafana which theme to use
-//    })
-//    const slug = GRAFANA_DASH_SLUG ? `/${GRAFANA_DASH_SLUG}` : ''
-//    return `${GRAFANA_BASE_URL}/d/${GRAFANA_DASH_UID}${slug}?${params.toString()}`
-//}
 function buildGrafanaUrl(run: RunSummary, theme: 'light' | 'dark'): string {
+    console.log('buildGrafanaUrl run =', run);
+    console.log('startedAt =', run.startedAt);
   const startMs = toEpochMs(run.startedAt);
   const durationMs = Number(run.durationSec) * 1000 || 0;
 
-  const from = isFinite(startMs) ? startMs - LEAD_MS : Date.now() - 60_000;
-  const to   = isFinite(startMs) ? startMs + durationMs + LAG_MS : Date.now();
+  const from = startMs - LEAD_MS;
+  const to = startMs + durationMs + LAG_MS;
 
   const url = new URL(
     `${GRAFANA_BASE_URL}/d/${encodeURIComponent(GRAFANA_DASH_UID)}${
@@ -125,6 +112,7 @@ export default function RunnerDashboard() {
         async function tick() {
             try {
                 const data = await http<RunSummary[]>('/runs')
+                console.log('GET /runs data:', data);
                 if (!stopped) setRuns(data)
             } catch (e: any) {
                 if (!stopped) setError(e.message ?? String(e))
@@ -136,12 +124,16 @@ export default function RunnerDashboard() {
     }, [hasRunning])
 
     async function startRun(e: React.FormEvent) {
-        e.preventDefault()
-        setLoading(true); setError(null)
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
         try {
+            console.log('Date now : ', Date.now());
             const body = {
                 script: scriptPath,
                 rate,
+                startedAt: Date.now(),
                 durationSec,
                 threadModel,
                 env: {
@@ -158,7 +150,7 @@ export default function RunnerDashboard() {
                 },
             }
 
-            const started = await http<{ runId: string; startedAt: number | string; durationSec: number }>(
+            const started = await http<{ runId: string; startedAt: number; durationSec: number }>(
                 '/runs',
                 { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
             )
@@ -167,7 +159,7 @@ export default function RunnerDashboard() {
                 id: started.runId,
                 rate,
                 durationSec,
-                startedAt: started.startedAt,
+                startedAt: body.startedAt,
                 status: 'PENDING',
             }
             setRuns(prev => [newRun, ...prev])
@@ -179,7 +171,10 @@ export default function RunnerDashboard() {
         }
     }
 
-    const embeddedRun = useMemo(() => runs.find(r => r.id === embedRunId) || null, [runs, embedRunId])
+    const embeddedRun = useMemo(
+        () => runs.find(r => r.id === embedRunId) || null,
+        [runs, embedRunId]
+    );
     const iframeUrl = embeddedRun ? buildGrafanaUrl(embeddedRun, theme) : ''
 
     // Tokenized styles (use CSS variables for theming)
@@ -416,7 +411,6 @@ export default function RunnerDashboard() {
                         </table>
                     </div>
                 </section>
-
             </div>
         </div>
     )

@@ -1,19 +1,15 @@
-package com.jm.spring_threads_benchmarks;
+package com.jm.backend;
 
-import com.jm.spring_threads_benchmarks.dto.OrderDto;
+import com.jm.backend.dto.OrderDto;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.containers.PostgreSQLContainer;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -35,7 +31,8 @@ class SpringThreadsBenchmarksApplicationIT {
         // Flyway enabled by default; it will run V1__init.sql, V2__seed.sql
     }
 
-    @Autowired TestRestTemplate rest;
+    @Autowired
+    TestRestTemplate rest;
 
     @Test
     void slowEndpointWorks() {
@@ -46,7 +43,7 @@ class SpringThreadsBenchmarksApplicationIT {
 
     @Test
     void create_then_get_by_id() {
-        var body = new org.springframework.util.LinkedMultiValueMap<String,String>(); // (simpler: use String JSON)
+        var body = new org.springframework.util.LinkedMultiValueMap<String, String>(); // (simpler: use String JSON)
         var headers = new org.springframework.http.HttpHeaders();
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
         var json = "{\"customer\":\"it-user\",\"totalCents\":1234}";

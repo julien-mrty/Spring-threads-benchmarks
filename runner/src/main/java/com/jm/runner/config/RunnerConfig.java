@@ -7,4 +7,5 @@ import com.jm.runner.config.RunnerProperties;
 
 @Configuration
 @EnableConfigurationProperties(RunnerProperties.class)
-public class RunnerConfig {}
+public class RunnerConfig {
+}

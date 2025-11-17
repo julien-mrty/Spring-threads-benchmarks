@@ -1,29 +1,27 @@
 package com.jm.runner;
 
-import com.jm.runner.config.RunnerProperties;
-import com.github.dockerjava.api.DockerClient;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class RunnerApplicationIT {
 
-    @Autowired TestRestTemplate rest;
+    @Autowired
+    TestRestTemplate rest;
 
     @Test
     void startRun_endpoint_returns_202() {
         var json = """
-            {"script":"ok.js","params":{"BASE_URL":"http://backend:8080"}}
-        """;
+                    {"script":"ok.js","params":{"BASE_URL":"http://backend:8080"}}
+                """;
 
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -55,8 +53,8 @@ class RunnerApplicationIT {
     @Test
     void post_enqueues_returns_202() {
         var json = """
-            {"script":"ok.js","params":{"BASE_URL":"http://backend:8080"}}
-        """;
+                    {"script":"ok.js","params":{"BASE_URL":"http://backend:8080"}}
+                """;
 
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -72,8 +70,8 @@ class RunnerApplicationIT {
     @Test
     void post_invalid_returns_400_problem() {
         var json = """
-            {"script":"missing.js","params":{"BASE_URL":"http://backend:8080"}}
-        """;
+                    {"script":"missing.js","params":{"BASE_URL":"http://backend:8080"}}
+                """;
 
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

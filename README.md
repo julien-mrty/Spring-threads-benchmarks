@@ -2,7 +2,9 @@
 
 *One repo. Three concurrency models. Real failure modes. Side-by-side benchmarks.*
 
-**Goal:** Help Spring developers decide when to use **Virtual Threads (Loom)** vs a **classic thread pool** vs **reactive WebFlux**, by measuring real workloads (mostly-blocking I/O) under stress with proper backpressure, timeouts, and observability.
+**Goal:** Help Spring developers decide when to use **Virtual Threads (Loom)** vs a **classic thread pool** vs *
+*reactive WebFlux**, by measuring real workloads (mostly-blocking I/O) under stress with proper backpressure, timeouts,
+and observability.
 
 See [Concepts & Definitions](./docs/concepts.md) for more information on concepts used in this repo.
 
@@ -47,29 +49,32 @@ So while we use JDBC as the main exemplar, you can mentally swap in “blocking 
 ## Concurrency models compared
 
 ### MVC + Classic Thread Pool
+
 - **Bounded pool** (e.g., 200–400 threads), easy to reason about.
 - Can **stall under heavy blocking** or slow downstreams.
 
 ### MVC + Virtual Threads (Java 21)
+
 - Switch on with `spring.threads.virtual.enabled=true`.
 - Keeps the **simple, blocking coding style**, but supports **huge concurrency** cheaply.
 - Still needs **backpressure** (e.g., DB connection pool stays small!).
 
 ### Reactive (WebFlux + R2DBC)
+
 - End-to-end **non-blocking**, great for **high fan-out** & **streaming**.
 - **Steeper learning curve**; different debugging/observability patterns.
 
 ### Classic Threads vs Virtual Threads vs Reactive (R2DBC)
 
-| Aspect | Classic Threads (MVC + JDBC) | Virtual Threads (MVC + JDBC, Loom) | Reactive (WebFlux + R2DBC) |
-|---|---|---|---|
-| **Concurrency model** | Fixed-size thread pool; each request uses an OS thread | Millions of cheap virtual threads; blocking style remains | Non-blocking (event loops), back-pressure via reactive streams |
-| **Code style** | Simple, imperative | Same as classic (simple, blocking) | Functional/async pipelines (Mono/Flux) |
-| **Best for** | Low–mid concurrency, mature legacy apps | Mostly-blocking I/O with high concurrency; easy migration path | End-to-end non-blocking, high fan-out, streaming |
-| **Resource limits** | Pool size caps concurrency; easy to reason about | DB connections become the real limit; must enforce backpressure | Few threads; concurrency limited by event loop & back-pressure |
-| **Pitfalls** | Thread pool exhaustion under blocking | Pinning, unbounded fan-outs if you ignore limits | Steeper learning curve; context/logging/stack traces trickier |
-| **DB access** | JDBC (blocking) | JDBC (blocking, but OK with VTs) | R2DBC (non-blocking DB driver) |
-| **Backpressure knobs** | Pool sizes/queues | DB pool size + semaphores + timeouts | Reactive operators (`buffer`, `limitRate`, `timeout`), connection pools |
+| Aspect                 | Classic Threads (MVC + JDBC)                           | Virtual Threads (MVC + JDBC, Loom)                              | Reactive (WebFlux + R2DBC)                                              |
+|------------------------|--------------------------------------------------------|-----------------------------------------------------------------|-------------------------------------------------------------------------|
+| **Concurrency model**  | Fixed-size thread pool; each request uses an OS thread | Millions of cheap virtual threads; blocking style remains       | Non-blocking (event loops), back-pressure via reactive streams          |
+| **Code style**         | Simple, imperative                                     | Same as classic (simple, blocking)                              | Functional/async pipelines (Mono/Flux)                                  |
+| **Best for**           | Low–mid concurrency, mature legacy apps                | Mostly-blocking I/O with high concurrency; easy migration path  | End-to-end non-blocking, high fan-out, streaming                        |
+| **Resource limits**    | Pool size caps concurrency; easy to reason about       | DB connections become the real limit; must enforce backpressure | Few threads; concurrency limited by event loop & back-pressure          |
+| **Pitfalls**           | Thread pool exhaustion under blocking                  | Pinning, unbounded fan-outs if you ignore limits                | Steeper learning curve; context/logging/stack traces trickier           |
+| **DB access**          | JDBC (blocking)                                        | JDBC (blocking, but OK with VTs)                                | R2DBC (non-blocking DB driver)                                          |
+| **Backpressure knobs** | Pool sizes/queues                                      | DB pool size + semaphores + timeouts                            | Reactive operators (`buffer`, `limitRate`, `timeout`), connection pools |
 
 ---
 
@@ -79,16 +84,19 @@ So while we use JDBC as the main exemplar, you can mentally swap in “blocking 
 ## What we benchmark
 
 ### Workloads
+
 - **DB-bound:** `GET /orders/{id}`, `POST /transfer` (transaction), `GET /report/slow` (simulated slow query).
 - **Downstream HTTP fan-out:** `GET /aggregate` calls N mock services and merges results.
 - **Mixed CPU/I/O:** small CPU blips to ensure no runaway.
 
 ### Metrics
+
 - **Throughput** (RPS), **latency** (p50/p95/p99), **error/timeouts**.
 - **DB pool stats** (active/idle/pending), **thread/VT counts**, **HTTP server stats**.
 - **Custom timers** (connection acquisition, retries, cancellations).
 
 ### Failure modes (on purpose)
+
 - **DB pool exhaustion** (watch pending waits and timeouts).
 - **Slow queries / slow downstreams** (timeouts, cancellations).
 - **Pinned virtual threads** (e.g., `synchronized` around I/O) → detect and fix.
@@ -107,18 +115,23 @@ So while we use JDBC as the main exemplar, you can mentally swap in “blocking 
 
 ## When to choose what (rule-of-thumb)
 
-- **Use Virtual Threads (MVC+VT)** when your app is **mostly blocking** (DB/HTTP), you want **simple code**, **high concurrency**, and you **respect resource limits** (DB pool remains bounded).
-- **Use Reactive (WebFlux+R2DBC)** when you need **end-to-end non-blocking**, **high fan-out aggregations**, **streaming**, or **strict resource caps**.
-- **Classic MVC pool** is still fine for **low-to-moderate loads** or legacy stacks where changing concurrency model isn’t worth the complexity.
+- **Use Virtual Threads (MVC+VT)** when your app is **mostly blocking** (DB/HTTP), you want **simple code**, **high
+  concurrency**, and you **respect resource limits** (DB pool remains bounded).
+- **Use Reactive (WebFlux+R2DBC)** when you need **end-to-end non-blocking**, **high fan-out aggregations**, **streaming
+  **, or **strict resource caps**.
+- **Classic MVC pool** is still fine for **low-to-moderate loads** or legacy stacks where changing concurrency model
+  isn’t worth the complexity.
 
 ---
 
 ## Quickstart
 
 ### Prereqs
+
 - Ubuntu 24, Java 21 (Temurin), Maven 3.9+, Docker.
 
 ### Run the app (current baseline)
+
 ```bash
 mvn spring-boot:run
 # then:
@@ -128,21 +141,25 @@ curl http://localhost:8080/
 ### Profiles (as they land)
 
 **mvc-vt → Spring MVC + JDBC + virtual threads**
+
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=mvc-vt
 ```
 
 **mvc-classic → Spring MVC + JDBC + ThreadPoolTaskExecutor**
+
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=mvc-classic
 ```
 
 **reactive → WebFlux + R2DBC**
+
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=reactive
 ```
 
-> **Tip:** Expose `/actuator/prometheus` and spin up **Prometheus + Grafana** via `docker-compose` (provided) to visualize runs.
+> **Tip:** Expose `/actuator/prometheus` and spin up **Prometheus + Grafana** via `docker-compose` (provided) to
+> visualize runs.
 
 ---
 
@@ -159,6 +176,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=reactive
 ## Key config snippets
 
 ### Enable Virtual Threads (MVC profile)
+
 ```yaml
 # application-mvc-vt.yml
 spring:
@@ -182,6 +200,7 @@ management:
 ```
 
 ### Classic pool (MVC profile)
+
 ```yaml
 # application-mvc-classic.yml
 spring:
@@ -199,6 +218,7 @@ spring:
 ```
 
 ### Reactive (WebFlux + R2DBC)
+
 ```yaml
 # application-reactive.yml
 spring:
@@ -219,4 +239,5 @@ management:
 ## Java 21 now, migrate to Java 25 later
 
 This repo starts on **Java 21 (LTS)** for maximum compatibility.  
-After **Java 25** (next LTS) stabilizes in the ecosystem, we’ll migrate, re-run benchmarks, and document: what broke (if anything), what got faster, and any GC/profiling differences.
+After **Java 25** (next LTS) stabilizes in the ecosystem, we’ll migrate, re-run benchmarks, and document: what broke (if
+anything), what got faster, and any GC/profiling differences.

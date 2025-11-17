@@ -1,26 +1,29 @@
-package com.jm.spring_threads_benchmarks.controller;
+package com.jm.backend.controller;
 
-import com.jm.spring_threads_benchmarks.dto.OrderDto;
-import com.jm.spring_threads_benchmarks.repository.OrderRepo;
+import com.jm.backend.controller.OrderController;
+import com.jm.backend.dto.OrderDto;
+import com.jm.backend.repository.OrderRepo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
-import org.springframework.dao.EmptyResultDataAccessException;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrderController.class)
 class OrderControllerTest {
 
-    @Autowired MockMvc mvc;
-    @MockitoBean OrderRepo orderRepo;
+    @Autowired
+    MockMvc mvc;
+    @MockitoBean
+    OrderRepo orderRepo;
 
     @Test
     void post_creates_order_201() throws Exception {

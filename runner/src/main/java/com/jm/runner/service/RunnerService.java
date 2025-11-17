@@ -4,81 +4,83 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback.Adapter;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.model.Frame;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Counter;
 import org.springframework.stereotype.Service;
-
-import java.io.IOException;
-import java.nio.file.*;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.regex.Pattern;
 
 import com.jm.runner.api.StartRunRequest;
 import com.jm.runner.config.RunnerProperties;
 import com.jm.runner.model.RunRecord;
 import com.jm.runner.model.RunStatus;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 @Service
 public class RunnerService {
 
     private final DockerClient docker;
-    private final RunnerProperties props;
+    private final RunnerProperties runnerProperties;
     private final Counter started, succeeded, failed;
     private volatile int active = 0;
     private final Map<String, RunRecord> runs = new ConcurrentHashMap<>();
     private final ExecutorService execPool;
 
-    private static final Pattern SAFE_SCRIPT =
-            Pattern.compile("^[a-zA-Z0-9._\\-\\/]+\\.js$");
+    private static final Pattern SAFE_SCRIPT = Pattern.compile("^[a-zA-Z0-9._\\-/]+\\.js$");
 
-    public RunnerService(DockerClient docker, RunnerProperties props, MeterRegistry mr) {
+    public RunnerService(DockerClient docker, RunnerProperties runnerProperties, MeterRegistry mr) {
         this.docker = docker;
-        this.props = props;
+        this.runnerProperties = runnerProperties;
         this.started = mr.counter("k6_runs_started_total");
         this.succeeded = mr.counter("k6_runs_succeeded_total");
         this.failed = mr.counter("k6_runs_failed_total");
         Gauge.builder("k6_runs_active", () -> active).register(mr);
-        this.execPool = Executors.newFixedThreadPool(Math.max(1, props.getMaxConcurrency()));
+        this.execPool = Executors.newSingleThreadExecutor();
     }
 
     public Collection<RunRecord> list() {
         return runs.values().stream()
-                .sorted(Comparator.comparing((RunRecord r) -> r.start).reversed())
+                .sorted(Comparator.comparing((RunRecord r) -> r.startedAt).reversed())
                 .toList();
     }
 
-    public RunRecord get(String id) { return runs.get(id); }
+    public RunRecord get(String id) {
+        return runs.get(id);
+    }
 
     public RunRecord enqueue(StartRunRequest req) {
         Objects.requireNonNull(req.script, "script is required");
         if (!SAFE_SCRIPT.matcher(req.script).matches() || req.script.contains(".."))
             throw new IllegalArgumentException("invalid script name");
 
-        Path script = Path.of(props.getScriptsDir(), req.script).normalize();
-
+        Path script = Path.of(runnerProperties.getScriptsDir(), req.script).normalize();
         if (!Files.exists(script))
             throw new IllegalArgumentException("script not found: " + req.script);
 
-        Map<String,String> params = Optional.ofNullable(req.params).orElseGet(HashMap::new);
+        Map<String, String> params = Optional.ofNullable(req.params).orElseGet(HashMap::new);
 
         // Enforce BASE_URL allow-list
-        String baseUrl = params.getOrDefault("BASE_URL", props.getAllowBaseUrl());
-        if (!baseUrl.equals(props.getAllowBaseUrl()))
-            throw new IllegalArgumentException("BASE_URL must be " + props.getAllowBaseUrl());
+        String baseUrl = params.getOrDefault("BASE_URL", runnerProperties.getAllowBaseUrl());
+        if (!baseUrl.equals(runnerProperties.getAllowBaseUrl()))
+            throw new IllegalArgumentException("BASE_URL must be " + runnerProperties.getAllowBaseUrl());
 
         params.put("BASE_URL", baseUrl);
 
-        String id = UUID.randomUUID().toString().substring(0,10);
-        String summaryPath = props.getResultsDir() + "/" + id + ".json";
+        String id = UUID.randomUUID().toString().substring(0, 10);
+        String summaryPath = runnerProperties.getResultsDir() + "/" + id + ".json";
 
         RunRecord rec = new RunRecord();
         rec.id = id;
         rec.script = req.script;
         rec.params = params;
-        rec.start = Instant.now();
+        rec.startedAt = req.startedAt;
+        rec.durationSec = req.durationSec;
         rec.status = RunStatus.QUEUED;
         rec.summaryPath = summaryPath;
         runs.put(id, rec);
@@ -95,21 +97,21 @@ public class RunnerService {
         try {
             // Build env list for docker exec
             List<String> envList = new ArrayList<>();
-            envList.add("K6_PROMETHEUS_RW_SERVER_URL=" + props.getPromRemoteWriteUrl());
+            envList.add("K6_PROMETHEUS_RW_SERVER_URL=" + runnerProperties.getPromRemoteWriteUrl());
             envList.add("K6_COMPATIBILITY_MODE=extended");
             for (var e : rec.params.entrySet()) {
-                envList.add(e.getKey() + "=" + String.valueOf(e.getValue()));
+                envList.add(e.getKey() + "=" + e.getValue());
             }
 
-            String scriptPath = props.getScriptsDir() + "/" + rec.script;
+            String scriptPath = runnerProperties.getScriptsDir() + "/" + rec.script;
 
-            ExecCreateCmdResponse execCreate = docker.execCreateCmd(props.getK6Container())
+            ExecCreateCmdResponse execCreate = docker.execCreateCmd(runnerProperties.getK6Container())
                     .withAttachStdout(true).withAttachStderr(true)
                     .withEnv(envList)
                     .withCmd(
-                            "k6","run",
+                            "k6", "run",
                             "--compatibility-mode=extended",
-                            "-o","experimental-prometheus-rw",
+                            "-o", "experimental-prometheus-rw",
                             "--summary-export", rec.summaryPath,
                             scriptPath
                     )
@@ -118,11 +120,21 @@ public class RunnerService {
             var latch = new CountDownLatch(1);
             docker.execStartCmd(execCreate.getId())
                     .exec(new Adapter<Frame>() {
-                        @Override public void onNext(Frame frame) {
+                        @Override
+                        public void onNext(Frame frame) {
                             System.out.print("[k6 " + rec.id + "] " + new String(frame.getPayload()));
                         }
-                        @Override public void onComplete() { latch.countDown(); }
-                        @Override public void onError(Throwable t) { t.printStackTrace(); latch.countDown(); }
+
+                        @Override
+                        public void onComplete() {
+                            latch.countDown();
+                        }
+
+                        @Override
+                        public void onError(Throwable t) {
+                            t.printStackTrace();
+                            latch.countDown();
+                        }
                     });
             latch.await();
 
@@ -131,16 +143,19 @@ public class RunnerService {
             Integer code = inspect.getExitCode();
 
             rec.status = (code != null && code == 0) ? RunStatus.SUCCEEDED : RunStatus.FAILED;
-            if (rec.status == RunStatus.SUCCEEDED) succeeded.increment(); else failed.increment();
+            if (rec.status == RunStatus.SUCCEEDED) succeeded.increment();
+            else failed.increment();
 
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            rec.status = RunStatus.FAILED; failed.increment();
+            rec.status = RunStatus.FAILED;
+            failed.increment();
         } catch (Exception e) {
             e.printStackTrace();
-            rec.status = RunStatus.FAILED; failed.increment();
+            rec.status = RunStatus.FAILED;
+            failed.increment();
         } finally {
-            rec.end = Instant.now();
+            //rec.end = Instant.now();
             active--;
         }
     }

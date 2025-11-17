@@ -1,11 +1,12 @@
-package com.jm.spring_threads_benchmarks.controller;
+package com.jm.backend.controller;
 
-import com.jm.spring_threads_benchmarks.dto.OrderDto;
-import com.jm.spring_threads_benchmarks.repository.OrderRepo;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import com.jm.backend.dto.OrderDto;
+import com.jm.backend.repository.OrderRepo;
 
 @Validated
 @RestController
@@ -24,7 +25,8 @@ public class OrderController {
 
     public record CreateOrderRequest(
             @jakarta.validation.constraints.NotBlank String customer,
-            @jakarta.validation.constraints.Positive int totalCents) {}
+            @jakarta.validation.constraints.Positive int totalCents) {
+    }
 
     @PostMapping
     public ResponseEntity<OrderDto> create(@Valid @RequestBody CreateOrderRequest req) {

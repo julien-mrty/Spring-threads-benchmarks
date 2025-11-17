@@ -1,6 +1,5 @@
-package com.jm.spring_threads_benchmarks.repository;
+package com.jm.backend.repository;
 
-import com.jm.spring_threads_benchmarks.dto.OrderDto;
 import io.micrometer.observation.annotation.Observed;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -8,18 +7,22 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import com.jm.backend.dto.OrderDto;
 import java.sql.PreparedStatement;
 import java.util.Objects;
 
 @Repository
 public class OrderRepo {
     private final JdbcTemplate jdbc;
-    public OrderRepo(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+
+    public OrderRepo(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Observed(
             name = "db.find_by_id",
             contextualName = "orderRepo.findById",
-            lowCardinalityKeyValues = {"op","select","table","orders"}
+            lowCardinalityKeyValues = {"op", "select", "table", "orders"}
     )
     public OrderDto findById(long id) {
         try {
@@ -40,7 +43,7 @@ public class OrderRepo {
     @Observed(
             name = "db.create_order",
             contextualName = "orderRepo.create",
-            lowCardinalityKeyValues = {"op","insert","table","orders"}
+            lowCardinalityKeyValues = {"op", "insert", "table", "orders"}
     )
     public long create(String customer, int totalCents) {
         KeyHolder kh = new GeneratedKeyHolder();
@@ -58,7 +61,7 @@ public class OrderRepo {
     @Observed(
             name = "db.slow_query",
             contextualName = "orderRepo.slowQueryMillis",
-            lowCardinalityKeyValues = {"op","sleep"}
+            lowCardinalityKeyValues = {"op", "sleep"}
     )
     public void slowQueryMillis(long ms) {
         double seconds = ms / 1000.0;

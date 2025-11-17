@@ -1,20 +1,23 @@
-package com.jm.spring_threads_benchmarks.error;
+package com.jm.backend.error;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.Map;
 
 @RestControllerAdvice
 class ApiErrors {
 
-    record ErrorBody(OffsetDateTime timestamp, int status, String error, String message, String path, Object details) {}
+    record ErrorBody(OffsetDateTime timestamp, int status, String error, String message, String path, Object details) {
+    }
 
     private ResponseEntity<ErrorBody> build(HttpStatus status, String message, String path, Object details) {
         return ResponseEntity.status(status).body(
