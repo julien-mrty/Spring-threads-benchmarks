@@ -34,7 +34,7 @@ public class RunsController {
 
     @GetMapping("/{id}")
     public ResponseEntity<RunRecord> get(@PathVariable String id) {
-        var r = service.get(id);
+        RunRecord r = service.get(id);
         if (r == null)
             throw new ResponseStatusException(NOT_FOUND, "Run not found: " + id);
         return ResponseEntity.ok(r);
@@ -42,7 +42,7 @@ public class RunsController {
 
     @GetMapping("/{id}/summary")
     public ResponseEntity<FileSystemResource> summary(@PathVariable String id) {
-        var r = service.get(id);
+        RunRecord r = service.get(id);
 
         if (r == null)
             throw new ResponseStatusException(NOT_FOUND, "Run not found: " + id);
@@ -61,7 +61,7 @@ public class RunsController {
 
     @PostMapping
     public ResponseEntity<RunRecord> start(@RequestBody StartRunRequest req) {
-        var r = service.enqueue(req);
+        RunRecord r = service.enqueue(req);
         return ResponseEntity.accepted().body(r);
     }
 }

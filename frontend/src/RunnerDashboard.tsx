@@ -6,18 +6,18 @@ const GRAFANA_DASH_UID = 'eeyuqdug3afi8c'
 const GRAFANA_DASH_SLUG = 'business-metrics-dashboard'
 const GRAFANA_ORG_ID = '1'
 
-const LEAD_MS = 60_000
+const LEAD_MS = 10_000
 const LAG_MS = 60_000
 
 // --- Types ---
-type KPIs = { rps?: number; p95_ms?: number; errorRate?: number }
+//type KPIs = { rps?: number; p95_ms?: number; errorRate?: number }
 type RunSummary = {
     id: string
     rate: number
     durationSec: number
-    startedAt: number | string
+    startedAt: number
     status: string
-    kpis?: KPIs
+    //kpis?: KPIs
 }
 
 // --- Theme helpers ---

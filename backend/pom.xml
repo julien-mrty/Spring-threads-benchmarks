@@ -125,21 +125,36 @@
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
+
+                    <!--
+                    Tell Maven to load the Mockito JAR  as a Java agent before running tests
+                    The agent path uses Maven’s local repository location, ensuring the correct version is loaded based on our project dependencies.
+                    -->
+                    <argLine>
+                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+                    </argLine>
                 </configuration>
             </plugin>
 
-            <!-- Integration tests: **/*IT.java run in INTEGRATION-TEST + VERIFY phases -->
+            <!-- Integration tests: **/*IT.java run in integration tests + verify phases -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <includes>
                         <include>**/*IT.java</include>
-                        <!-- (optional) also support *ITCase.java -->
-                        <!-- <include>**/*ITCase.java</include> -->
                     </includes>
 
-                    <!-- Force docker-java to use a modern API, none work-->
+                    <!--
+                    Tell Maven to load the Mockito JAR  as a Java agent before running tests
+                    The agent path uses Maven’s local repository location, ensuring the correct version is loaded based on our project dependencies.
+                    -->
+                    <argLine>
+                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+                    </argLine>
+
+                    <!-- c.f: error during verify, the docker java API used is too old (1.32 instead of 1.44 min) -->
+                    <!-- Force docker-java to use a modern API, none of the tests worked -->
                     <!--
                     <environmentVariables>
                         <DOCKER_API_VERSION>1.44</DOCKER_API_VERSION>
@@ -174,6 +189,14 @@
                 </executions>
                 <configuration>
                     <!-- <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine> -->
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>16</source>
+                    <target>16</target>
                 </configuration>
             </plugin>
         </plugins>
